@@ -1,73 +1,101 @@
-# Welcome to your Lovable project
+# 🛡️ ScamShield AI
 
-## Project info
+> **Your Personal AI Cybersecurity Analyst.**
+> Detects scams in real-time using a Hybrid Intelligence Engine (Machine Learning + Large Language Models).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+![Project Banner](https://placehold.co/1200x400/0891b2/ffffff?text=ScamShield+AI+Dashboard)
+## 🚀 Live Demo
+**👉 Try it here:** [https://scamshield-ui-kit.vercel.app](https://scamshield-ui-kit.vercel.app)
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🧐 The Problem
+Digital fraud is evolving. Traditional spam filters rely on **keywords** (e.g., "Winner," "Prince," "Bank"), but modern scammers use **psychological triggers** and context-heavy stories that slip past standard filters.
 
-**Use Lovable**
+## 💡 The Solution: Hybrid AI Architecture
+ScamShield is not just a keyword matcher. It uses a **Dual-Brain System** to catch what others miss:
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+1.  **⚡ The Speed Brain (Naive Bayes):** Instantly flags known spam patterns and keywords (Offline & Fast).
+2.  **🧠 The Reasoning Brain (Llama 3 via Groq):** Analyzes the *context* and *intent* of the message. It detects subtle social engineering attacks like false urgency, authority bias, and emotional manipulation.
 
-Changes made via Lovable will be committed automatically to this repo.
+**The "Smart Override" Protocol:**
+If the Speed Brain says "Safe" but the Reasoning Brain detects a psychological trap, the system **overrides the score to High Risk** and explains exactly why.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## ✨ Key Features
+* **Quick Scan:** Paste any text (SMS, Email, WhatsApp) for instant analysis.
+* **Screenshot Scan:** Upload an image of a chat; OCR extracts text for analysis.
+* **AI Insight:** Get a human-readable explanation of *why* a message is dangerous.
+* **Risk Scoring:** Dynamic 0-100% risk assessment.
+* **History Log:** Local storage keeps track of your past scans.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+---
 
-Follow these steps:
+## 🛠️ Tech Stack
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### **Frontend (The Face)**
+* **Framework:** React + Vite
+* **Styling:** Tailwind CSS + Shadcn UI
+* **Icons:** Lucide React
+* **Deployment:** Vercel
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### **Backend (The Brain)**
+* **Server:** Python (Flask)
+* **ML Engine:** Scikit-Learn (Naive Bayes Classifier)
+* **LLM Engine:** Groq API (llama-3.3-70b-versatile)
+* **Deployment:** Render
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+## 🔧 Installation & Setup
+
+### 1. Clone the Repository
+```bash
+git clone [https://github.com/JohnConfidence556/scamshield-backend.git](https://github.com/JohnConfidence556/scamshield-backend.git)
+cd scamshield-backend
+
+### 2. Setup Backend (Python)
+```bash
+# Install dependencies
+pip install flask flask-cors pandas scikit-learn groq python-dotenv gunicorn
+
+# Setup Environment Variables
+# Create a .env file and add:
+GROQ_API_KEY=gsk_your_key_here
+
+# Run Server
+python main.py
+
 ```
 
-**Edit a file directly in GitHub**
+### 3. Setup Frontend (React)
+```bash
+# Install dependencies
+npm install
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+# Run Development Server
+npm run dev
+```
+---
 
-**Use GitHub Codespaces**
+## 📸 Usage Examples
+Case 1: The "Hi Mum" Scam
+Input: "Hi Mum, I lost my phone. Please transfer N20,000 to this friend's account."
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Standard Filter: ✅ Safe (No bad keywords).
 
-## What technologies are used for this project?
+ScamShield: 🚨 High Risk. AI Insight: "Contextual Scam Detected. The sender is using a 'fake emergency' to bypass logical thinking."
 
-This project is built with:
+Case 2: The Fake Bank
+Input: "Access Bank: Your BVN is blocked. Click here to verify."
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Standard Filter: 🚨 High Risk (Keyword: BVN). ScamShield: 🚨 High Risk.
 
-## How can I deploy this project?
+---
+## 📸 Usage Examples
+John Confidence - Lead Engineer
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Built for the Alameda Hacks Hackathon 2026.
