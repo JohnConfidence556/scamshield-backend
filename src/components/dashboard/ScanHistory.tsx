@@ -1,113 +1,105 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Search, Trash2, AlertTriangle, CheckCircle, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
-
-const historyItems = [
-  {
-    id: 1,
-    preview: "URGENT: Your package is waiting...",
-    riskLevel: "suspicious" as const,
-    score: 72,
-    date: "2 hours ago",
-  },
-  {
-    id: 2,
-    preview: "Your Amazon order has shipped...",
-    riskLevel: "safe" as const,
-    score: 8,
-    date: "5 hours ago",
-  },
-  {
-    id: 3,
-    preview: "Your bank account has been compromised...",
-    riskLevel: "danger" as const,
-    score: 94,
-    date: "1 day ago",
-  },
-  {
-    id: 4,
-    preview: "Meeting reminder for tomorrow at 3pm...",
-    riskLevel: "safe" as const,
-    score: 3,
-    date: "2 days ago",
-  },
-  {
-    id: 5,
-    preview: "You've won a $1000 gift card! Click here...",
-    riskLevel: "danger" as const,
-    score: 98,
-    date: "3 days ago",
-  },
-];
-
-const riskConfig = {
-  safe: {
-    icon: ShieldCheck,
-    color: "text-success",
-    bg: "bg-success/10",
-  },
-  suspicious: {
-    icon: ShieldAlert,
-    color: "text-warning",
-    bg: "bg-warning/10",
-  },
-  danger: {
-    icon: ShieldX,
-    color: "text-destructive",
-    bg: "bg-destructive/10",
-  },
-};
+import { Button } from "@/components/ui/button";
+import { getScans, clearHistory, ScanRecord } from "@/lib/storage";
 
 const ScanHistory = () => {
+  const [scans, setScans] = useState<ScanRecord[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Load real data when page opens
+  useEffect(() => {
+    setScans(getScans());
+  }, []);
+
+  const handleClear = () => {
+    if (confirm("Are you sure you want to clear all history?")) {
+      clearHistory();
+      setScans([]);
+    }
+  };
+
+  // Filter functionality
+  const filteredScans = scans.filter(scan => 
+    scan.text.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Helper to format date "2 minutes ago"
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">Scan History</h1>
-        <p className="text-muted-foreground">
-          View your previous scans and analysis results
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Scan History</h1>
+          <p className="text-muted-foreground">
+            View your previous analysis results
+          </p>
+        </div>
+        {scans.length > 0 && (
+          <Button variant="destructive" size="sm" onClick={handleClear}>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Clear History
+          </Button>
+        )}
       </div>
 
-      {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input 
-          placeholder="Search history..." 
-          className="pl-10 bg-card border-border/50"
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search history..."
+          className="pl-10 bg-background/50"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      {/* History List */}
-      <div className="space-y-3">
-        {historyItems.map((item) => {
-          const config = riskConfig[item.riskLevel];
-          const Icon = config.icon;
-          
-          return (
-            <div 
-              key={item.id}
-              className="glass-card p-4 rounded-xl flex items-center gap-4 hover:border-primary/30 transition-colors cursor-pointer group"
+      <div className="space-y-4">
+        {filteredScans.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            {scans.length === 0 ? "No scans yet. Go try a Quick Scan!" : "No matches found."}
+          </div>
+        ) : (
+          filteredScans.map((scan) => (
+            <div
+              key={scan.id}
+              className="glass-card p-4 rounded-xl border border-white/5 hover:border-white/10 transition-colors flex items-start gap-4"
             >
-              <div className={`w-12 h-12 rounded-lg ${config.bg} flex items-center justify-center`}>
-                <Icon className={`w-6 h-6 ${config.color}`} />
+              <div className={`mt-1 p-2 rounded-full ${
+                scan.riskLevel === "danger" ? "bg-red-500/20 text-red-500" :
+                scan.riskLevel === "suspicious" ? "bg-yellow-500/20 text-yellow-500" :
+                "bg-green-500/20 text-green-500"
+              }`}>
+                {scan.riskLevel === "danger" ? <ShieldAlert className="w-5 h-5" /> :
+                 scan.riskLevel === "suspicious" ? <AlertTriangle className="w-5 h-5" /> :
+                 <CheckCircle className="w-5 h-5" />}
               </div>
               
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate group-hover:text-primary transition-colors">
-                  {item.preview}
-                </p>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                  <span className={`font-medium ${config.color}`}>
-                    {item.score}% risk
+                <div className="flex items-start justify-between gap-4 mb-1">
+                  <h3 className="font-semibold truncate pr-4">
+                    {scan.text.slice(0, 60)}{scan.text.length > 60 ? "..." : ""}
+                  </h3>
+                  <span className={`text-xs font-mono whitespace-nowrap px-2 py-1 rounded-full ${
+                    scan.riskLevel === "danger" ? "bg-red-500/10 text-red-400" :
+                    scan.riskLevel === "suspicious" ? "bg-yellow-500/10 text-yellow-400" :
+                    "bg-green-500/10 text-green-400"
+                  }`}>
+                    {scan.score}% risk
                   </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {item.date}
-                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span>{formatDate(scan.date)}</span>
+                  <span className="capitalize">• {scan.type} Scan</span>
                 </div>
               </div>
             </div>
-          );
-        })}
+          ))
+        )}
       </div>
     </div>
   );

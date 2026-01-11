@@ -1,5 +1,6 @@
-import { Shield, Scan, Image, History, Settings, LogOut } from "lucide-react";
+import { Shield, Scan, Image, History, Settings, LogOut, Home } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { Link } from "react-router-dom";
 
 const menuItems = [
   { icon: Scan, label: "Quick Scan", path: "/dashboard" },
@@ -38,9 +39,19 @@ const DashboardSidebar = () => {
         </ul>
       </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-sidebar-border">
-        <button className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors">
+      {/* Footer Actions */}
+      <div className="p-4 border-t border-sidebar-border space-y-2">
+        {/* New Back to Home Button */}
+        <Link 
+          to="/" 
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-primary transition-colors"
+        >
+          <Home className="w-5 h-5" />
+          <span className="font-medium">Back to Home</span>
+        </Link>
+
+        {/* Logout */}
+        <button className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-red-500/10 hover:text-red-500 w-full transition-colors">
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Sign Out</span>
         </button>

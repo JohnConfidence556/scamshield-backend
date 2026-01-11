@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Scan, Loader2 } from "lucide-react";
 import AnalysisResult from "./AnalysisResult";
+// 1. IMPORT THE SAVE FUNCTION
+import { saveScan } from "@/lib/storage";
 
 const QuickScan = () => {
   const [text, setText] = useState("");
@@ -20,52 +22,56 @@ const QuickScan = () => {
     
     setIsAnalyzing(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Demo result based on content
-    const isSuspicious = text.toLowerCase().includes("urgent") || 
-                         text.toLowerCase().includes("click") ||
-                         text.toLowerCase().includes("verify") ||
-                         text.toLowerCase().includes("account");
-    
-    const isDanger = text.toLowerCase().includes("password") ||
-                     text.toLowerCase().includes("ssn") ||
-                     text.toLowerCase().includes("bank");
+    try {
+      const response = await fetch('http://127.0.0.1:8080/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: text }),
+      });
 
-    setResult({
-      riskLevel: isDanger ? "danger" : isSuspicious ? "suspicious" : "safe",
-      score: isDanger ? 92 : isSuspicious ? 65 : 15,
-      highlights: isDanger 
-        ? ["password", "bank", "verify immediately"]
-        : isSuspicious 
-          ? ["urgent action required", "click here", "verify your account"]
-          : [],
-      explanation: isDanger
-        ? [
-            "Requests sensitive financial information",
-            "Creates artificial urgency to bypass rational thinking",
-            "Contains suspicious link patterns"
-          ]
-        : isSuspicious
-          ? [
-              "Uses urgency tactics common in phishing attempts",
-              "Contains call-to-action phrases typical of scams",
-              "May be attempting to harvest credentials"
-            ]
-          : [
-              "No suspicious patterns detected",
-              "Message appears to be legitimate",
-              "No urgent action requests found"
-            ],
-      actions: isDanger
-        ? ["Do not respond", "Block sender", "Report as phishing"]
-        : isSuspicious
-          ? ["Verify sender identity", "Do not click links", "Contact organization directly"]
-          : ["No action needed", "Message appears safe"]
-    });
-    
-    setIsAnalyzing(false);
+      if (!response.ok) {
+        throw new Error("Failed to connect to AI");
+      }
+
+      const data = await response.json();
+
+      let uiRiskLevel: "safe" | "suspicious" | "danger" = "safe";
+      if (data.status === "High Risk") uiRiskLevel = "danger";
+      else if (data.status === "Low Risk") uiRiskLevel = "suspicious";
+
+      const aiExplanations = [data.advice];
+      if (data.keywords && data.keywords.length > 0) {
+        aiExplanations.push(`Triggers found: "${data.keywords.join(", ")}"`);
+      }
+
+      setResult({
+        riskLevel: uiRiskLevel,
+        score: data.score,
+        highlights: data.keywords || [],
+        explanation: aiExplanations,
+        actions: uiRiskLevel === "danger" 
+          ? ["Block the sender", "Do not click links", "Report as spam"] 
+          : uiRiskLevel === "suspicious"
+          ? ["Verify with sender", "Don't share codes", "Proceed carefully"]
+          : ["No action needed", "Message is safe"]
+      });
+
+      // 2. ADD THIS BLOCK: Save to History
+      saveScan({
+        text: text,
+        riskLevel: uiRiskLevel,
+        score: data.score,
+        type: "text" // This tells History it was a text scan
+      });
+
+    } catch (error) {
+      console.error("Error:", error);
+      alert("⚠️ Error: Check if your Python backend (main.py) is running!");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleReset = () => {
@@ -78,15 +84,15 @@ const QuickScan = () => {
       <div>
         <h1 className="text-2xl font-bold mb-2">Quick Scan</h1>
         <p className="text-muted-foreground">
-          Paste a suspicious message or email to analyze for potential scams
+          Paste a suspicious message or email to analyze for potential scams.
         </p>
       </div>
 
       {!result ? (
-        <div className="glass-card p-6 rounded-xl">
+        <div className="glass-card p-6 rounded-xl border border-white/10">
           <Textarea
-            placeholder="Paste the suspicious message here..."
-            className="min-h-[200px] bg-background/50 border-border/50 resize-none mb-4"
+            placeholder="Paste text here (e.g. 'Your BVN is blocked...')"
+            className="min-h-[200px] bg-background/50 resize-none mb-4"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
@@ -94,18 +100,18 @@ const QuickScan = () => {
           <Button 
             onClick={handleAnalyze} 
             disabled={!text.trim() || isAnalyzing}
-            variant="hero"
+            variant="default" 
             size="lg"
-            className="w-full"
+            className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
           >
             {isAnalyzing ? (
               <>
-                <Loader2 className="w-5 h-5 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Analyzing...
               </>
             ) : (
               <>
-                <Scan className="w-5 h-5" />
+                <Scan className="w-5 h-5 mr-2" />
                 Analyze Message
               </>
             )}

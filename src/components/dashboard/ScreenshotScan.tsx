@@ -1,8 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
+import Tesseract from 'tesseract.js';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Image, Scan, Loader2, X } from "lucide-react";
 import AnalysisResult from "./AnalysisResult";
+// Import the storage function
+import { saveScan } from "@/lib/storage";
 
 const ScreenshotScan = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -10,6 +13,10 @@ const ScreenshotScan = () => {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  
+  // Ref for the hidden file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [result, setResult] = useState<null | {
     riskLevel: "safe" | "suspicious" | "danger";
     score: number;
@@ -38,64 +45,98 @@ const ScreenshotScan = () => {
     }
   }, []);
 
+  const handleButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleFile = (file: File) => {
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setImage(e.target?.result as string);
-        simulateOCR();
+        performOCR(file);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const simulateOCR = async () => {
+  const performOCR = async (file: File) => {
     setIsExtracting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setExtractedText(
-      "URGENT: Your bank account has been compromised!\n\nDear Customer,\n\nWe have detected suspicious activity on your account. To prevent unauthorized access, please verify your identity immediately by clicking the link below:\n\nhttp://secure-bank-verify.suspicious-site.com/verify\n\nFailure to verify within 24 hours will result in account suspension.\n\nBank Security Team"
-    );
-    setIsExtracting(false);
+    setExtractedText(""); 
+    
+    try {
+      const worker = await Tesseract.createWorker('eng');
+      const ret = await worker.recognize(file);
+      setExtractedText(ret.data.text);
+      await worker.terminate();
+    } catch (error) {
+      console.error("OCR Failed:", error);
+      setExtractedText("Error reading image. Please type text manually.");
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const handleAnalyze = async () => {
     if (!extractedText.trim()) return;
     
     setIsAnalyzing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    setResult({
-      riskLevel: "danger",
-      score: 94,
-      highlights: [
-        "URGENT",
-        "bank account has been compromised",
-        "verify your identity immediately",
-        "suspicious-site.com"
-      ],
-      explanation: [
-        "Creates false sense of urgency to prevent rational decision making",
-        "Uses fear tactics about account compromise",
-        "Contains suspicious URL that doesn't match legitimate bank domains",
-        "Threatens account suspension to pressure immediate action",
-        "Generic greeting 'Dear Customer' instead of your actual name"
-      ],
-      actions: [
-        "Do not click any links in this message",
-        "Do not provide any personal information",
-        "Contact your bank directly using official channels",
-        "Report this message as phishing",
-        "Block the sender"
-      ]
-    });
-    
-    setIsAnalyzing(false);
+    try {
+      const response = await fetch('http://127.0.0.1:8080/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: extractedText }),
+      });
+
+      if (!response.ok) throw new Error("AI Connection Failed");
+
+      const data = await response.json();
+
+      let uiRiskLevel: "safe" | "suspicious" | "danger" = "safe";
+      if (data.status === "High Risk") uiRiskLevel = "danger";
+      else if (data.status === "Low Risk") uiRiskLevel = "suspicious";
+
+      const aiExplanations = [data.advice];
+      if (data.keywords && data.keywords.length > 0) {
+        aiExplanations.push(`Detected Triggers: "${data.keywords.join(", ")}"`);
+      }
+
+      setResult({
+        riskLevel: uiRiskLevel,
+        score: data.score,
+        highlights: data.keywords || [],
+        explanation: aiExplanations,
+        actions: uiRiskLevel === "danger" 
+          ? ["Block sender", "Do not click links", "Report Image"] 
+          : uiRiskLevel === "suspicious"
+          ? ["Verify source", "Check for typos", "Don't scan QR codes"]
+          : ["No action needed", "Image text appears safe"]
+      });
+
+      // --- NEW: Save to History ---
+      saveScan({
+        text: extractedText,
+        riskLevel: uiRiskLevel,
+        score: data.score,
+        type: "image"
+      });
+
+    } catch (error) {
+      console.error("Analysis Error:", error);
+      alert("⚠️ Backend Error: Ensure main.py is running!");
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const handleReset = () => {
     setImage(null);
     setExtractedText("");
     setResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   if (result) {
@@ -142,23 +183,27 @@ const ScreenshotScan = () => {
             <h3 className="text-lg font-semibold mb-2">Drop your screenshot here</h3>
             <p className="text-muted-foreground mb-4">or click to browse files</p>
             
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-              />
-              <Button variant="outline">
-                <Image className="w-4 h-4 mr-2" />
-                Select Image
-              </Button>
-            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+            />
+            
+            <Button 
+              variant="default" 
+              onClick={handleButtonClick}
+              className="cursor-pointer"
+            >
+              <Image className="w-4 h-4 mr-2" />
+              Select Image
+            </Button>
+            
           </div>
         </div>
       ) : (
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Image Preview */}
           <div className="glass-card p-4 rounded-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">Uploaded Image</h3>
@@ -175,14 +220,13 @@ const ScreenshotScan = () => {
             </div>
           </div>
 
-          {/* Extracted Text */}
           <div className="glass-card p-4 rounded-xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold">Extracted Text</h3>
               {isExtracting && (
                 <div className="flex items-center gap-2 text-primary text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Extracting...
+                  Reading Text...
                 </div>
               )}
             </div>
@@ -198,18 +242,18 @@ const ScreenshotScan = () => {
             <Button 
               onClick={handleAnalyze} 
               disabled={!extractedText.trim() || isAnalyzing || isExtracting}
-              variant="hero"
+              variant="default"
               size="lg"
-              className="w-full"
+              className="w-full bg-cyan-600 hover:bg-cyan-700 text-white"
             >
               {isAnalyzing ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Analyzing...
                 </>
               ) : (
                 <>
-                  <Scan className="w-5 h-5" />
+                  <Scan className="w-5 h-5 mr-2" />
                   Analyze Extracted Text
                 </>
               )}
@@ -218,22 +262,21 @@ const ScreenshotScan = () => {
         </div>
       )}
 
-      {/* Pipeline Visualization */}
       <div className="glass-card p-6 rounded-xl">
         <h3 className="font-semibold mb-4">Analysis Pipeline</h3>
         <div className="flex items-center justify-between gap-2">
           {[
-            { label: "OCR", active: isExtracting, done: !!extractedText },
+            { label: "OCR Scan", active: isExtracting, done: !!extractedText },
             { label: "Text Cleanup", active: false, done: !!extractedText },
-            { label: "Scam Detection", active: isAnalyzing, done: !!result },
-            { label: "Explanation", active: false, done: !!result },
+            { label: "AI Model", active: isAnalyzing, done: !!result },
+            { label: "Risk Assessment", active: false, done: !!result },
           ].map((step, i) => (
             <div key={step.label} className="flex items-center flex-1">
-              <div className={`flex-1 h-2 rounded-full ${
-                step.done ? "bg-primary" : step.active ? "bg-primary/50 animate-pulse" : "bg-muted"
+              <div className={`flex-1 h-2 rounded-full transition-all duration-500 ${
+                step.done ? "bg-cyan-500" : step.active ? "bg-cyan-500/50 animate-pulse" : "bg-muted"
               }`} />
               <div className={`text-xs font-medium ml-2 ${
-                step.done ? "text-primary" : step.active ? "text-primary" : "text-muted-foreground"
+                step.done ? "text-cyan-500" : step.active ? "text-cyan-500" : "text-muted-foreground"
               }`}>
                 {step.label}
               </div>
